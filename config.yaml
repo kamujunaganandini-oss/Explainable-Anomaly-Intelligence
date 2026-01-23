@@ -1,0 +1,25 @@
+use_case: "parts_inventory_anomaly"
+
+data:
+  source: "csv"
+  path: "data/raw/sample_data.csv"
+  features:
+    - metric_1
+    - metric_2
+    - metric_3
+
+anomaly_detection:
+  method: "hotelling_t2"
+  alpha: 0.01
+
+hypotheses:
+  supplier_delay:
+    prior: 0.4
+  demand_spike:
+    prior: 0.35
+  data_quality_issue:
+    prior: 0.25
+
+llm:
+  enabled: false
+  model: "claude-sonnet"

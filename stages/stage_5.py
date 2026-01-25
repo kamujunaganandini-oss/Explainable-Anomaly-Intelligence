@@ -17,6 +17,8 @@ def compute_cds(causal_influences):
     entropy = -sum([p * np.log2(p) for p in normalized if p > 0])
     max_entropy = np.log2(len(causal_influences))
     return 1 - (entropy / max_entropy) if max_entropy > 0 else 0
+
+'''
 ```
 
 ---
@@ -67,3 +69,5 @@ The UI is designed for non-technical stakeholders. No charts, no statistical jar
 │  Action: Quality audit | Supplier investigation              │
 │  [View Details]                                              │
 └─────────────────────────────────────────────────────────────┘
+
+'''

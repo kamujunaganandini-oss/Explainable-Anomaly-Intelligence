@@ -1,4 +1,40 @@
-import anthropic
+# stages/stage_4.py
+
+#temporary mock up
+def generate_narrative(top_hypothesis, context):
+    """
+    Mock narrative generator (LLM-free).
+
+    Parameters:
+    - top_hypothesis: dict with keys ['hypothesis', 'evidence']
+    - context: dict with keys ['metric', 'magnitude', 'date']
+
+    Returns:
+    - Executive-friendly narrative string
+    """
+
+    return f"""
+EXECUTIVE SUMMARY
+
+An anomaly was detected on {context['date']} affecting:
+{context['metric']} (deviation magnitude: {context['magnitude']}).
+
+Most likely cause:
+• {top_hypothesis['hypothesis']}
+
+Supporting evidence:
+• {top_hypothesis['evidence']}
+
+Recommended next step:
+• Validate this hypothesis with domain stakeholders and
+  review recent operational or data changes.
+"""
+
+
+##anthropic incase credits
+
+
+'''import anthropic
 
 def generate_narrative(top_hypothesis, context):
     """
@@ -33,3 +69,4 @@ def generate_narrative(top_hypothesis, context):
     )
     
     return response.content[0].text
+'''

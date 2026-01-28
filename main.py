@@ -20,9 +20,29 @@ def run():
     print("Stage 1 complete")
     print("Total Rows : ", len(result))
     print("Anomalies detected:", result["is_anomaly"].sum())
-    print(result[["date", "T2_score", "is_anomaly"]])
-    anomalies = result[result["is_anomaly"]]
+    #print(result[["date", "T2_score", "is_anomaly"]])
+    #anomalies = result[result["is_anomaly"]]
     
+    
+
+
+    anomalies = result[result["is_anomaly"] == True]
+    
+
+    print(f"\nTotal rows processed: {len(result)}")
+    print(f"Total anomalies detected: {len(anomalies)}")
+
+    relative_threshold  = anomalies["T2_score"].quantile(0.99)
+    absolute_threshold = result["T2_score"].mean() + 3 * result["T2_score"].std()
+
+    significant_anomalies = anomalies[(anomalies["T2_score"] >= relative_threshold) & (anomalies["T2_score"] >= absolute_threshold)]
+    
+    raw_anomaly_count = len(anomalies)
+    significant_anomaly_count = len(significant_anomalies)
+    print(f"Anomalies detected (raw): {len(anomalies)}")
+    print(f"Anomalies after severity gate: {len(significant_anomalies)}")
+    run_stats = {"total_rows": len(result),"raw_anomalies": len(anomalies),"significant_anomalies": len(significant_anomalies)}
+
     ##stage_2
     anomalies = result[result["is_anomaly"]]
 
@@ -33,14 +53,14 @@ def run():
             feature_cols=features,
             config=config
         )
-        print("\n Enriched Context")
-        print(context)
+        #print("\n Enriched Context")
+        #print(context)
     ##stage 3
     ranked = rank_hypotheses(context)
 
-    print("\n🧠 Hypothesis Ranking")
+    '''print("\n Hypothesis Ranking")
     for r in ranked:
-        print(r)
+        print(r)'''
 
     ##STAGE 4
     # ===== Stage 4: Narrative Generation =====
@@ -76,7 +96,7 @@ def run():
 
         narrative = generate_narrative(
             top_hypothesis=stage_4_hypothesis,
-            context=stage_4_context
+            context=stage_4_context,run_stats=run_stats
         )
 
         print("\n Stage 4 Narrative")

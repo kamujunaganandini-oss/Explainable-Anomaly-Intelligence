@@ -1,0 +1,23 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ---- Virtual Environments ----
+Venv/
+venv/
+.env
+
+# ---- Data & Outputs ----
+data/
+*.csv
+*.parquet
+
+# ---- Secrets ----
+config_local.yaml
+*.key
+
+# ---- OS ----
+.DS_Store
+Thumbs.db

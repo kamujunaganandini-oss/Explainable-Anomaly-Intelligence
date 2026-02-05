@@ -1,130 +1,120 @@
 import pandas as pd
-from utils.config import load_config
-from stages.stage_1 import detect_multivariate_anomalies
-from stages.stage_2.context_builder import build_context
-from stages.stage_3.ranker import rank_hypotheses
-from stages.stage_4 import generate_narrative
-from stages.stage_5 import compute_nci, compute_der, compute_cds
+import yaml
+
+from core.state_builder import build_system_state
+from core.stage1 import run_stage1_v2
+from core.stage2 import run_stage2_v2
+from core.stage3 import run_stage3_v2
+from core.stage4 import run_stage4_llm
+from core.stage5 import compute_nci, compute_der, compute_cds
 
 
+with open("config.yaml") as f:
+    config = yaml.safe_load(f)
 
-def run():
-    config = load_config()
+# Load raw data
+df_raw = pd.read_csv(config["data"]["path"])
 
-    df = pd.read_csv(config["data"]["path"])
-    features = config["data"]["features"]
-    alpha = config["anomaly_detection"]["alpha"]
+# Build system state 
+state_df = build_system_state(
+    df_raw=df_raw,
+    date_column=config["state_builder"]["date_column"],
+    time_unit=config["state_builder"]["time_unit"],
+    aggregation_config=config["state_builder"]["aggregations"],
+    date_format=config["state_builder"].get("date_format")
+)
 
-    result = detect_multivariate_anomalies(df,features,alpha)
-    
-    print("Stage 1 complete")
-    print("Total Rows : ", len(result))
-    print("Anomalies detected:", result["is_anomaly"].sum())
-    #print(result[["date", "T2_score", "is_anomaly"]])
-    #anomalies = result[result["is_anomaly"]]
-    
-    
-
-
-    anomalies = result[result["is_anomaly"] == True]
-    
-
-    print(f"\nTotal rows processed: {len(result)}")
-    print(f"Total anomalies detected: {len(anomalies)}")
-
-    relative_threshold  = anomalies["T2_score"].quantile(0.99)
-    absolute_threshold = result["T2_score"].mean() + 3 * result["T2_score"].std()
-
-    significant_anomalies = anomalies[(anomalies["T2_score"] >= relative_threshold) & (anomalies["T2_score"] >= absolute_threshold)]
-    
-    raw_anomaly_count = len(anomalies)
-    significant_anomaly_count = len(significant_anomalies)
-    print(f"Anomalies detected (raw): {len(anomalies)}")
-    print(f"Anomalies after severity gate: {len(significant_anomalies)}")
-    run_stats = {"total_rows": len(result),"raw_anomalies": len(anomalies),"significant_anomalies": len(significant_anomalies)}
-
-    ##stage_2
-    anomalies = result[result["is_anomaly"]]
-
-    for row in anomalies.itertuples():
-        context = build_context(
-            anomaly_row=row,
-            df=df,
-            feature_cols=features,
-            config=config
-        )
-        #print("\n Enriched Context")
-        #print(context)
-    ##stage 3
-    ranked = rank_hypotheses(context)
-
-    '''print("\n Hypothesis Ranking")
-    for r in ranked:
-        print(r)'''
-
-    ##STAGE 4
-    # ===== Stage 4: Narrative Generation =====
-    anomaly = context["anomaly"]
-    top_hypothesis = ranked[0]
-
-    stage_4_context = {
-        "metric": ", ".join(anomaly["features"].keys()),
-        "magnitude": round(anomaly["t2_score"], 2),
-        "date": anomaly["date"]
-    }
-    #STAGE_4_EVIDENCE 
-    def build_evidence(context):
-        deviations = context["relational"]["feature_deviations"]
-
-        signals = []
-        for metric, info in deviations.items():
-            signals.append(
-                f"{metric} {info['direction']} (z={round(info['z_score'],2)})"
-            )
-
-        return "; ".join(signals)
+# Stage 1 v2
+stage1_out = run_stage1_v2(
+    df=state_df,
+    time_column="time",
+    feature_list=config["stage1"]["features"],
+    feature_bounds=config["stage1"]["feature_bounds"],
+    window_days=config["stage1"]["window_days"],
+    alpha=config["stage1"]["alpha"],
+    weights=config["stage1"]["risk_weights"]
+)
 
 
-    stage_4_hypothesis = {
-        "hypothesis": top_hypothesis["hypothesis"],
-        "evidence": build_evidence(context)
-    }
+print(stage1_out)
+print("\n--- Conditional Routing ---")
 
+anomaly_level = stage1_out.get("anomaly_level")
+decision_gate = stage1_out.get("decision_gate")
 
-    try:
-        top_hypothesis = ranked[0]
+# -----------------------------
+# Case 1: No or Marginal Anomaly
+# -----------------------------
+if decision_gate == "stop":
 
-        narrative = generate_narrative(
-            top_hypothesis=stage_4_hypothesis,
-            context=stage_4_context,run_stats=run_stats
-        )
+    print(f"No deep analysis required (anomaly level: {anomaly_level}).")
 
-        print("\n Stage 4 Narrative")
-        print(narrative)
+    stage4_out = run_stage4_llm(
+        stage1_output=stage1_out,
+        stage2_output=None,
+        stage3_output=None
+    )
 
-    except Exception as e:
-        print("\n Stage 4 failed")
-        print(str(e))
+    print("\nStage 4 Summary:")
+    print(stage4_out)
 
+    print("\nStage 5 Metrics:")
+    print("NCI: N/A")
+    print("DER: N/A")
+    print("CDS: N/A")
 
-    ##STAGE 5
-    # Extract inputs for Stage 5
-    prior_action_probs = [h["prior"] for h in ranked]
-    post_action_probs = [h["posterior"] for h in ranked]
+# -----------------------------
+# Case 2: Moderate / Strong Anomaly
+# -----------------------------
+else:
 
-    # Simple causal influence proxy (v1)
+    print(f"Anomaly detected (level: {anomaly_level}). Running full pipeline.")
+
+    # ---- Stage 2 ----
+    stage2_out = run_stage2_v2(
+        state_df=state_df,
+        stage1_output=stage1_out,
+        features=config["stage1"]["features"],
+        baseline_days=config["stage1"]["window_days"]
+    )
+
+    print("\nStage 2 Output:")
+    print(stage2_out)
+
+    # ---- Stage 3 ----
+    stage3_out = run_stage3_v2(
+        stage2_output=stage2_out,
+        stage1_output=stage1_out,
+        hypotheses_config=config["stage3"]["hypotheses"]
+    )
+
+    print("\nStage 3 Output:")
+    print(stage3_out)
+
+    # ---- Stage 4 ----
+    stage4_out = run_stage4_llm(
+        stage1_output=stage1_out,
+        stage2_output=stage2_out,
+        stage3_output=stage3_out
+    )
+
+    print("\nStage 4 Summary:")
+    print(stage4_out)
+
+    # ---- Stage 5 ----
+    prior_probs = [h["prior"] for h in stage3_out]
+    post_probs = [h["posterior"] for h in stage3_out]
+
     causal_influences = {
-        h["hypothesis"]: h["posterior"] for h in ranked
+        h["hypothesis"]: h["posterior"]
+        for h in stage3_out
     }
-    
-    nci = compute_nci(ranked)
-    der = compute_der(prior_action_probs, post_action_probs)
+
+    nci = compute_nci(stage3_out)
+    der = compute_der(prior_probs, post_probs)
     cds = compute_cds(causal_influences)
-    print("\n Stage 5 Metrics")
+
+    print("\nStage 5 Metrics:")
     print("NCI:", round(nci, 3))
     print("DER:", round(der, 3))
     print("CDS:", round(cds, 3))
-
-
-if __name__ == "__main__":
-    run()

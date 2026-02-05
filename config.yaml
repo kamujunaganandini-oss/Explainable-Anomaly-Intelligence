@@ -1,54 +1,105 @@
 usecase:
-  name: "Product Release Rollback Decision"
+  name: "Parts Warehouse – CADEN v2"
 
 data:
-  path: "data/product_release_100k.csv"
-  time_column: "day"
+  path: "data/parts_warehouse_caden_v2.csv"
+  date_column: "business_date"   
+  date_format: "%Y-%m-%d"         
 
 stage1:
-  features:
-    - dau
-    - session_duration
-    - conversion_rate
-    - error_rate
-    - api_latency_ms
-    - crash_rate
-    - support_tickets
-    - feature_adoption
-    - page_load_time_ms
-    - checkout_abandonment
-    - refund_requests
+  window_days: 14
   alpha: 0.01
 
-stage2:
-  contextual_columns:
-    - release_flag
-  rolling_window: 7
+  features:
+    - orders
+    - revenue
+    - lead_time
+    - inventory_level
+    - backorders
+    - fulfillment_rate
+    - on_time_delivery
+    - warranty_claims
+    - return_rate
+    - unit_cost
+  
+  feature_bounds:
+    lead_time:
+      expected_max: 7
+      caution_max: 10
+      critical_max: 14
 
+    inventory_level:
+      expected_min: 500
+      caution_min: 300
+      critical_min: 150
+
+    backorders:
+      expected_max: 20
+      caution_max: 50
+      critical_max: 100
+
+    fulfillment_rate:
+      expected_min: 0.95
+      caution_min: 0.90
+      critical_min: 0.85
+
+    on_time_delivery:
+      expected_min: 0.92
+      caution_min: 0.88
+      critical_min: 0.80
+
+    warranty_claims:
+      expected_max: 5
+      caution_max: 10
+      critical_max: 20
+
+    return_rate:
+      expected_max: 0.04
+      caution_max: 0.06
+      critical_max: 0.10
+
+  risk_weights:
+    t2: 0.35
+    persistence: 0.25
+    risk_zone: 0.25
+    trend: 0.15
+state_builder:
+  time_unit: "day"
+  date_column: "business_date"
+  date_format: "%Y-%m-%d"
+
+  aggregations:
+    orders: "sum"
+    revenue: "sum"
+    lead_time: "mean"
+    inventory_level: "mean"
+    backorders: "sum"
+    fulfillment_rate: "mean"
+    on_time_delivery: "mean"
+    warranty_claims: "sum"
+    return_rate: "mean"
+    unit_cost: "mean"
 stage3:
   hypotheses:
-    H_release_defect:
-      description: "Release introduced a functional or performance defect"
-      prior: 0.35
-    H_infra_scaling:
-      description: "Infrastructure capacity or scaling issue"
+    supplier_delay:
+      prior: 0.30
+      expectations:
+        lead_time: up
+        inventory: down
+
+    demand_spike:
+      prior: 0.25
+      expectations:
+        orders: up
+        inventory: down
+
+    pricing_issue:
       prior: 0.20
-    H_user_learning:
-      description: "Temporary user learning curve"
-      prior: 0.20
-    H_external_shift:
-      description: "External traffic quality change"
+      expectations:
+        price: up
+        orders: down
+
+    data_quality:
       prior: 0.15
-    H_data_lag:
-      description: "Analytics or logging delay"
-      prior: 0.10
-
-stage4:
-  narrative:
-    max_sentences: 3
-    tone: "executive"
-
-stage5:
-  thresholds:
-    high_confidence: 0.75
-    medium_confidence: 0.50
+      expectations:
+        missing_rate: up

@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CADEN: Explainable Anomaly Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00D9FF;
+            --secondary: #FF006E;
+            --accent: #8338EC;
+            --bg-dark: #0A0E27;
+            --bg-card: #151932;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A8B2D1;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #00D9FF 0%, #8338EC 100%);
+            --gradient-3: linear-gradient(135deg, #FF006E 0%, #FFBE0B 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .presentation {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            opacity: 0;
+            padding: 4rem 6rem;
+            transition: opacity 0.6s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+			touch-action: pan-y;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+            animation: slideIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Background Effects */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-1 {
+            top: -200px;
+            right: -200px;
+            background: var(--primary);
+        }
+
+        .glow-2 {
+            bottom: -200px;
+            left: -200px;
+            background: var(--accent);
+        }
+
+        /* Navigation */
+        .nav-controls {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 0.75rem;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            color: var(--primary);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+            color: var(--bg-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            z-index: 1000;
+            background: var(--bg-card);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--primary);
+            animation: fadeInUp 0.8s ease 0.3s both;
+        }
+
+        h3 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Content Containers */
+        .content {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            font-weight: 300;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 217, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease 0.5s both;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0, 217, 255, 0.15);
+        }
+
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .card p, .card ul {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+
+        .card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .card ul li {
+            padding-left: 1.5rem;
+            position: relative;
+            margin-bottom: 0.75rem;
+        }
+
+        .card ul li:before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        /* Pipeline Stages */
+        .pipeline {
+            display: flex;
+            gap: 1.5rem;
+            margin: 2rem 0;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .stage {
+            flex: 1;
+            background: var(--bg-card);
+            border: 2px solid rgba(0, 217, 255, 0.15);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .stage:hover {
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+
+        .stage-number {
+            position: absolute;
+            top: -15px;
+            left: 1.5rem;
+            background: var(--gradient-2);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .stage h4 {
+            margin-top: 0.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .stage p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Formula Display */
+        .formula {
+            background: rgba(0, 217, 255, 0.05);
+            border-left: 4px solid var(--primary);
+            padding: 1.5rem 2rem;
+            margin: 2rem 0;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.3rem;
+            text-align: center;
+            animation: fadeInUp 0.8s ease 0.7s both;
+        }
+
+        /* Metrics Display */
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 217, 255, 0.15);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .metric-card:nth-child(2) {
+            animation-delay: 0.7s;
+        }
+
+        .metric-card:nth-child(3) {
+            animation-delay: 0.8s;
+        }
+
+        .metric-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0, 217, 255, 0.2);
+        }
+
+        .metric-value {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Test Results */
+        .test-result {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 217, 255, 0.15);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .test-result h4 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .test-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .test-metric {
+            text-align: center;
+        }
+
+        .test-metric-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .test-metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .result-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .badge-success {
+            background: rgba(0, 217, 100, 0.15);
+            color: #00D964;
+            border: 1px solid #00D964;
+        }
+
+        /* Key Points */
+        .key-points {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .key-point {
+            background: var(--bg-card);
+            border-left: 4px solid var(--primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .key-point:nth-child(2) { animation-delay: 0.65s; }
+        .key-point:nth-child(3) { animation-delay: 0.7s; }
+        .key-point:nth-child(4) { animation-delay: 0.75s; }
+        .key-point:nth-child(5) { animation-delay: 0.8s; }
+
+        .key-point strong {
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .key-point p {
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            line-height: 1.6;
+        }
+
+        /* Comparison Table */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .comparison-col h3 {
+            margin-bottom: 1.5rem;
+        }
+
+        .comparison-col.strengths h3 {
+            color: #00D964;
+        }
+
+        .comparison-col.tradeoffs h3 {
+            color: #FFBE0B;
+        }
+
+        .comparison-item {
+            background: var(--bg-card);
+            padding: 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(0, 217, 255, 0.1);
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .comparison-col.strengths .comparison-item {
+            border-left: 4px solid #00D964;
+        }
+
+        .comparison-col.tradeoffs .comparison-item {
+            border-left: 4px solid #FFBE0B;
+        }
+
+        /* Final Slide Highlight */
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1) 0%, rgba(131, 56, 236, 0.1) 100%);
+            border: 2px solid var(--primary);
+            border-radius: 16px;
+            padding: 3rem;
+            text-align: center;
+            margin: 2rem 0;
+            animation: fadeInUp 0.8s ease 0.6s both, pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(0, 217, 255, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 20px rgba(0, 217, 255, 0);
+            }
+        }
+
+        .highlight-box h3 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .highlight-box p {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        /* Architecture Diagram */
+        .arch-diagram {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 217, 255, 0.15);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .flow-steps {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .flow-step {
+            flex: 1;
+            min-width: 140px;
+            background: rgba(0, 217, 255, 0.05);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .flow-step:not(:last-child):after {
+            content: "→";
+            position: absolute;
+            right: -1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .flow-step-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .flow-step-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Keyboard hint */
+        .keyboard-hint {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            z-index: 1000;
+            opacity: 0.6;
+        }
+
+        /* ============================================ */
+        /* RESPONSIVE BREAKPOINTS */
+        /* ============================================ */
+
+        /* Tablet (Portrait) - 768px and below */
+        @media (max-width: 768px) {
+            .slide {
+                padding: 3rem 2rem 6rem 2rem;
+            }
+
+            h1 {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
+
+            h2 {
+                font-size: 2rem;
+                margin-bottom: 1.5rem;
+            }
+
+            h3 {
+                font-size: 1.4rem;
+            }
+
+            .subtitle {
+                font-size: 1.2rem;
+                margin-bottom: 2rem;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .card h3 {
+                font-size: 1.2rem;
+            }
+
+            .pipeline {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .stage {
+                padding: 2rem 1.5rem;
+            }
+
+            .formula {
+                font-size: 1rem;
+                padding: 1rem 1.5rem;
+            }
+
+            .metrics {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .metric-value {
+                font-size: 2.5rem;
+            }
+
+            .test-metrics {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+
+            .test-metric-value {
+                font-size: 1.4rem;
+            }
+
+            .key-points {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .comparison {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .highlight-box {
+                padding: 2rem 1.5rem;
+            }
+
+            .highlight-box h3 {
+                font-size: 1.8rem;
+            }
+
+            .highlight-box p {
+                font-size: 1.1rem;
+            }
+
+            .flow-steps {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .flow-step {
+                min-width: 100%;
+            }
+
+            .flow-step:not(:last-child):after {
+                content: "↓";
+                right: auto;
+                left: 50%;
+                top: auto;
+                bottom: -1.75rem;
+                transform: translateX(-50%);
+            }
+
+            .nav-controls {
+                bottom: 1.5rem;
+                right: 1.5rem;
+                gap: 0.5rem;
+            }
+
+            .nav-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+
+            .slide-counter {
+                bottom: 1.5rem;
+                left: 1.5rem;
+                padding: 0.6rem 1.2rem;
+                font-size: 0.85rem;
+            }
+
+            .keyboard-hint {
+                display: none;
+            }
+
+            .bg-glow {
+                width: 400px;
+                height: 400px;
+            }
+        }
+
+        /* Mobile (Landscape) - 640px and below */
+        @media (max-width: 640px) {
+            .slide {
+                padding: 2.5rem 1.5rem 6rem 1.5rem;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            h2 {
+                font-size: 1.7rem;
+            }
+
+            h3 {
+                font-size: 1.3rem;
+            }
+
+            .subtitle {
+                font-size: 1.1rem;
+            }
+
+            .card {
+                padding: 1.25rem;
+            }
+
+            .card p, .card ul {
+                font-size: 0.95rem;
+            }
+
+            .stage {
+                padding: 1.75rem 1.25rem;
+            }
+
+            .stage h4 {
+                font-size: 0.95rem;
+            }
+
+            .stage p {
+                font-size: 0.8rem;
+            }
+
+            .formula {
+                font-size: 0.9rem;
+                padding: 1rem;
+            }
+
+            .metric-value {
+                font-size: 2.2rem;
+            }
+
+            .metric-label {
+                font-size: 0.9rem;
+            }
+
+            .test-result {
+                padding: 1.5rem;
+            }
+
+            .test-result h4 {
+                font-size: 1.2rem;
+            }
+
+            .test-metric-label {
+                font-size: 0.75rem;
+            }
+
+            .test-metric-value {
+                font-size: 1.3rem;
+            }
+
+            .key-point {
+                padding: 1.25rem;
+            }
+
+            .key-point strong {
+                font-size: 1rem;
+            }
+
+            .key-point p {
+                font-size: 0.9rem;
+            }
+
+            .comparison-item {
+                padding: 1rem;
+            }
+
+            .comparison-item strong {
+                font-size: 1rem;
+            }
+
+            .comparison-item p {
+                font-size: 0.9rem;
+            }
+
+            .highlight-box {
+                padding: 1.75rem 1.25rem;
+            }
+
+            .highlight-box h3 {
+                font-size: 1.5rem;
+            }
+
+            .highlight-box p {
+                font-size: 1rem;
+            }
+
+            .arch-diagram {
+                padding: 1.5rem;
+            }
+
+            .flow-step {
+                padding: 1.25rem 1rem;
+            }
+
+            .flow-step-title {
+                font-size: 0.8rem;
+            }
+
+            .flow-step-desc {
+                font-size: 0.7rem;
+            }
+        }
+
+        /* Mobile (Small) - 480px and below */
+        @media (max-width: 480px) {
+            .slide {
+                padding: 2rem 1.25rem 6rem 1.25rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+                margin-bottom: 1.25rem;
+            }
+
+            h3 {
+                font-size: 1.2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+
+            .card h3 {
+                font-size: 1.1rem;
+            }
+
+            .card p, .card ul {
+                font-size: 0.9rem;
+            }
+
+            .card ul li {
+                margin-bottom: 0.5rem;
+                padding-left: 1.25rem;
+            }
+
+            .stage {
+                padding: 1.5rem 1rem;
+            }
+
+            .stage-number {
+                width: 30px;
+                height: 30px;
+                font-size: 0.9rem;
+                left: 1rem;
+            }
+
+            .formula {
+                font-size: 0.8rem;
+                padding: 0.875rem;
+            }
+
+            .metrics {
+                gap: 1rem;
+            }
+
+            .metric-card {
+                padding: 1.5rem 1rem;
+            }
+
+            .metric-value {
+                font-size: 2rem;
+            }
+
+            .metric-label {
+                font-size: 0.85rem;
+            }
+
+            .test-result {
+                padding: 1.25rem;
+            }
+
+            .test-result h4 {
+                font-size: 1.1rem;
+            }
+
+            .test-metrics {
+                gap: 0.75rem;
+            }
+
+            .test-metric-label {
+                font-size: 0.7rem;
+            }
+
+            .test-metric-value {
+                font-size: 1.2rem;
+            }
+
+            .result-badge {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .key-point {
+                padding: 1rem;
+            }
+
+            .key-point strong {
+                font-size: 0.95rem;
+            }
+
+            .key-point p {
+                font-size: 0.85rem;
+            }
+
+            .comparison-item {
+                padding: 0.875rem;
+            }
+
+            .comparison-item strong {
+                font-size: 0.95rem;
+            }
+
+            .comparison-item p {
+                font-size: 0.85rem;
+            }
+
+            .highlight-box {
+                padding: 1.5rem 1rem;
+            }
+
+            .highlight-box h3 {
+                font-size: 1.3rem;
+                margin-bottom: 1rem;
+            }
+
+            .highlight-box p {
+                font-size: 0.95rem;
+            }
+
+            .arch-diagram {
+                padding: 1.25rem;
+            }
+
+            .flow-step {
+                padding: 1rem 0.75rem;
+            }
+
+            .nav-controls {
+                bottom: 1.25rem;
+                right: 1.25rem;
+            }
+
+            .nav-btn {
+                width: 42px;
+                height: 42px;
+                font-size: 1rem;
+            }
+
+            .slide-counter {
+                bottom: 1.25rem;
+                left: 1.25rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .bg-glow {
+                width: 300px;
+                height: 300px;
+            }
+        }
+
+        /* Mobile (Extra Small) - 360px and below */
+        @media (max-width: 360px) {
+            .slide {
+                padding: 1.75rem 1rem 5.5rem 1rem;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            h2 {
+                font-size: 1.35rem;
+            }
+
+            h3 {
+                font-size: 1.1rem;
+            }
+
+            .subtitle {
+                font-size: 0.95rem;
+            }
+
+            .card {
+                padding: 0.875rem;
+            }
+
+            .card h3 {
+                font-size: 1rem;
+            }
+
+            .card p, .card ul {
+                font-size: 0.85rem;
+            }
+
+            .formula {
+                font-size: 0.75rem;
+            }
+
+            .metric-value {
+                font-size: 1.8rem;
+            }
+
+            .test-metric-value {
+                font-size: 1.1rem;
+            }
+
+            .nav-btn {
+                width: 40px;
+                height: 40px;
+            }
+
+            .slide-counter {
+                font-size: 0.75rem;
+                padding: 0.45rem 0.875rem;
+            }
+        }
+
+        /* Landscape Mode Optimizations */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .slide {
+                padding: 1.5rem 2rem 4rem 2rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 0.75rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+            }
+
+            .subtitle {
+                margin-bottom: 1.25rem;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+
+            .metrics {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .two-column {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .nav-controls {
+                bottom: 1rem;
+                right: 1rem;
+            }
+
+            .slide-counter {
+                bottom: 1rem;
+                left: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation">
+        <div class="bg-grid"></div>
+        <div class="bg-glow glow-1"></div>
+        <div class="bg-glow glow-2"></div>
+
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <div class="content">
+                <h1>CADEN</h1>
+                <div class="subtitle">Explainable Anomaly Intelligence using CADEN Pipeline</div>
+                <div class="card" style="max-width: 700px;">
+                    <h3>Use Case: Parts Data Warehouse</h3>
+                    <p style="margin-top: 1rem; font-size: 1.1rem;">
+                        Transforming anomaly detection into governed decision intelligence through Bayesian reasoning and executive communication.
+                    </p>
+                    <p style="margin-top: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem;">
+						<span style="color: var(--primary); font-weight: 600;">Project Reference:</span>
+						<a href="https://github.com/kamujunaganandini-oss/Explainable-Anomaly-Intelligence"
+						   target="_blank"
+						   style="color: var(--primary); text-decoration: none; border-bottom: 1px solid rgba(0, 217, 255, 0.4); padding-bottom: 2px;">
+						   View Source & Documentation
+						</a>
+					</p>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Problem Statement & Architecture -->
+        <div class="slide">
+            <div class="content">
+                <h2>Problem Statement & Architecture</h2>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Objective</h3>
+                        <ul>
+                            <li>Detect operational anomalies in multivariate warehouse KPIs</li>
+                            <li>Move beyond alerts → generate causal explanations</li>
+                            <li>Provide executive-readable summaries</li>
+                            <li>Enable governed decision intelligence</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Pipeline Stages</h3>
+                        <ul>
+                            <li>Data ingestion & aggregation</li>
+                            <li>Deviation detection</li>
+                            <li>Context embedding</li>
+                            <li>Bayesian causal reasoning</li>
+                            <li>Narrative synthesis</li>
+                            <li>Decision signalling</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="arch-diagram">
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <div class="flow-step-title">Stage 0</div>
+                            <div class="flow-step-desc">Data Ingestion</div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-step-title">Stage 1</div>
+                            <div class="flow-step-desc">Deviation Detection</div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-step-title">Stage 2</div>
+                            <div class="flow-step-desc">Context Embedding</div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-step-title">Stage 3</div>
+                            <div class="flow-step-desc">Causal Reasoning</div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-step-title">Stage 4</div>
+                            <div class="flow-step-desc">Narrative</div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-step-title">Stage 5</div>
+                            <div class="flow-step-desc">Decision KPIs</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Stage 0 -->
+        <div class="slide">
+            <div class="content">
+                <h2>Stage 0 – Data Ingestion & State Builder</h2>
+                <div class="card" style="margin-bottom: 2rem;">
+                    <h3>Goal</h3>
+                    <p>Prepare consistent, analysis-ready time-windowed state.</p>
+                </div>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Implementation Details</h3>
+                        <ul>
+                            <li>Entry point: <code>main.py</code></li>
+                            <li>Aggregation logic: <code>core/state_builder.py</code></li>
+                            <li>Config-driven metadata: <code>utils/config.py</code></li>
+                            <li>Date grain: Day</li>
+                            <li>Rolling window: 14 days</li>
+                            <li>Feature-specific aggregation rules</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Key Concept</h3>
+                        <p style="font-size: 1.1rem; line-height: 1.8;">
+                            Raw warehouse data → grouped by date → aggregated per feature rules → standardized state vector.
+                        </p>
+                        <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(0, 217, 255, 0.05); border-radius: 8px; border-left: 4px solid var(--primary);">
+                            <p style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;">
+                                Raw Data → Config Mapping → Aggregation → Windowed State
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Stage 1 -->
+        <div class="slide">
+            <div class="content">
+                <h2>Stage 1 – Multivariate Deviation Detection</h2>
+                <div class="card">
+                    <h3>Core Technique: Hotelling's T²</h3>
+                    <div class="formula">
+                        T²ₜ = (xₜ - μ)ᵀ S⁻¹ (xₜ - μ)
+                    </div>
+                    <p style="margin-top: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.95rem;">
+                        μ = historical mean vector | S = covariance matrix | Threshold = Chi-square critical value
+                    </p>
+                </div>
+                <div class="two-column" style="margin-top: 2rem;">
+                    <div class="card">
+                        <h3>Signals Computed</h3>
+                        <ul>
+                            <li>T² score</li>
+                            <li>Persistence score</li>
+                            <li>Risk zone score</li>
+                            <li>Exceedance count</li>
+                            <li>Weighted Risk Score</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Outputs</h3>
+                        <ul>
+                            <li>Anomaly Level: none / marginal / moderate / strong</li>
+                            <li>Decision Gate: stop / proceed</li>
+                            <li>KPI contribution breakdown</li>
+                        </ul>
+                        <p style="margin-top: 1.5rem; color: var(--primary); font-weight: 600;">
+                            Not just statistical deviation — governed anomaly classification.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Stages 2 & 3 -->
+        <div class="slide">
+            <div class="content">
+                <h2>Stages 2 & 3 – Context + Causal Hypothesis</h2>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Stage 2 – Contextual Embedding</h3>
+                        <ul>
+                            <li>Determines direction (↑ / ↓ / flat)</li>
+                            <li>Computes normalized strength</li>
+                            <li>Converts deviation → interpretable signals</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Stage 3 – Bayesian Causal Reasoning</h3>
+                        <p style="margin-bottom: 1rem; font-weight: 600; color: var(--primary);">
+                            For each hypothesis:
+                        </p>
+                        <p style="font-family: 'JetBrains Mono', monospace; background: rgba(0, 217, 255, 0.05); padding: 1rem; border-radius: 8px; font-size: 0.95rem;">
+                            Posterior = Prior × Likelihood
+                        </p>
+                        <ul style="margin-top: 1rem;">
+                            <li>Direction match</li>
+                            <li>Signal strength</li>
+                            <li>Soft penalty (0.2) if mismatch</li>
+                            <li>Likelihood floor enforcement</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="highlight-box" style="margin-top: 2rem; animation-delay: 0.7s;">
+                    <h3>Statistical Anomaly → Probabilistic Explanation</h3>
+                    <p>Ranked hypotheses with normalized posterior probabilities</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Stages 4 & 5 -->
+        <div class="slide">
+            <div class="content">
+                <h2>Stages 4 & 5 – Narrative + Decision Signals</h2>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Stage 4 – LLM Narrative Synthesis</h3>
+                        <ul>
+                            <li>Triggered only if anomaly validated</li>
+                            <li>Extract top hypothesis</li>
+                            <li>Use materially changed features (> 0.3 strength)</li>
+                            <li>Generate 3-sentence executive summary</li>
+                            <li>Fallback if LLM fails</li>
+                        </ul>
+                        <p style="margin-top: 1.5rem; color: var(--primary); font-weight: 600;">
+                            LLM is gated and evidence-based
+                        </p>
+                    </div>
+                    <div class="card">
+                        <h3>Stage 5 – Decision KPIs</h3>
+                        <ul>
+                            <li><strong>NCI</strong> → Max posterior probability</li>
+                            <li><strong>DER</strong> → Entropy reduction</li>
+                            <li><strong>CDS</strong> → Causal dominance score</li>
+                        </ul>
+                        <p style="margin-top: 1.5rem; color: var(--text-secondary); line-height: 1.8;">
+                            These quantify: Confidence, Uncertainty reduction, Strength of single dominant cause
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Test Results -->
+        <div class="slide">
+            <div class="content">
+                <h2>Test Results & Validation</h2>
+                
+                <div class="test-result">
+                    <h4>Test Case 1 – No Anomaly</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                        Window: 2025-10-05 → 2025-10-18
+                    </p>
+                    <div class="test-metrics">
+                        <div class="test-metric">
+                            <div class="test-metric-label">T² Score</div>
+                            <div class="test-metric-value">0.41</div>
+                        </div>
+                        <div class="test-metric">
+                            <div class="test-metric-label">Persistence</div>
+                            <div class="test-metric-value">0.0</div>
+                        </div>
+                        <div class="test-metric">
+                            <div class="test-metric-label">Riskzone</div>
+                            <div class="test-metric-value">0.28</div>
+                        </div>
+                        <div class="test-metric">
+                            <div class="test-metric-label">Anomaly Level</div>
+                            <div class="test-metric-value" style="font-size: 1.2rem;">Marginal</div>
+                        </div>
+                    </div>
+                    <div class="result-badge badge-success">✓ Decision Gate: STOP – Test Passed</div>
+                </div>
+
+                <div class="test-result" style="animation-delay: 0.7s;">
+                    <h4>Test Case 3 – Moderate/Strong Anomaly</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                        Window: 2025-12-05 → 2025-12-18
+                    </p>
+                    <div class="metrics" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="metric-card">
+                            <div class="metric-value">0.79</div>
+                            <div class="metric-label">NCI</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">0.84</div>
+                            <div class="metric-label">DER</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">0.47</div>
+                            <div class="metric-label">CDS</div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 1.5rem; color: var(--text-secondary);">
+                        <strong style="color: var(--primary);">Observation:</strong> Repetition increased weight → system became more confident. Full pipeline triggered with executive narrative generated.
+                    </p>
+                </div>
+				<div class="highlight-box" style="margin-top: 2rem;">
+					  <h3>Executive Narrative Output (Example)</h3>
+					  <p style="font-size: 1.05rem; line-height: 1.8; color: var(--text-secondary);">
+						A significant supply chain disruption occurred from December 5-18, 2025, affecting delivery performance, inventory levels, and customer satisfaction with a 30.9% risk impact to operations. The root cause appears to be supplier delays, which created a cascade of problems including longer lead times, inventory shortages, increased backorders, and higher customer returns. Management should immediately engage with key suppliers to resolve delivery issues and implement contingency sourcing plans to restore normal operations and prevent further customer impact
+
+					  </p>
+					</div>
+
+            </div>
+        </div>
+
+        <!-- Slide 8: Key Insights -->
+        <div class="slide">
+            <div class="content">
+                <h2>Key Insights & Contributions</h2>
+                <div class="key-points">
+                    <div class="key-point">
+                        <strong>Multivariate Detection</strong>
+                        <p>Hotelling's T² enables simultaneous monitoring of multiple KPIs with statistical rigor</p>
+                    </div>
+                    <div class="key-point">
+                        <strong>Governance Layer</strong>
+                        <p>Decision gate prevents false positives and controls downstream processing costs</p>
+                    </div>
+                    <div class="key-point">
+                        <strong>Bayesian Ranking</strong>
+                        <p>Hypothesis engine transforms raw signals into probabilistic causal explanations</p>
+                    </div>
+                    <div class="key-point">
+                        <strong>Explainable Output</strong>
+                        <p>Executive narratives bridge technical detection with business understanding</p>
+                    </div>
+                    <div class="key-point">
+                        <strong>Decision Intelligence</strong>
+                        <p>NCI, DER, and CDS metrics quantify confidence and uncertainty reduction</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Strengths & Trade-offs -->
+        <div class="slide">
+            <div class="content">
+                <h2>Strengths & Trade-offs</h2>
+                <div class="comparison">
+                    <div class="comparison-col strengths">
+                        <h3>✓ Strengths</h3>
+                        <div class="comparison-item">
+                            <strong>Explainable</strong>
+                            <p>Every anomaly comes with causal reasoning and narrative explanation</p>
+                        </div>
+                        <div class="comparison-item" style="animation-delay: 0.65s;">
+                            <strong>Modular</strong>
+                            <p>Pipeline stages are independent and can be enhanced individually</p>
+                        </div>
+                        <div class="comparison-item" style="animation-delay: 0.7s;">
+                            <strong>Config-driven</strong>
+                            <p>Feature definitions and thresholds externalized for easy tuning</p>
+                        </div>
+                        <div class="comparison-item" style="animation-delay: 0.75s;">
+                            <strong>Business-aligned</strong>
+                            <p>Thresholds and outputs designed for operational decision-making</p>
+                        </div>
+                        <div class="comparison-item" style="animation-delay: 0.8s;">
+                            <strong>LLM safely gated</strong>
+                            <p>Narrative generation only occurs after statistical validation</p>
+                        </div>
+                    </div>
+                    <div class="comparison-col tradeoffs">
+                        <h3>⚠ Trade-offs</h3>
+                        <div class="comparison-item">
+                            <strong>Prior hypothesis required</strong>
+                            <p>System needs pre-defined causal hypotheses; cannot discover unknown patterns</p>
+                        </div>
+                        <div class="comparison-item" style="animation-delay: 0.65s;">
+                            <strong>Baseline dependency</strong>
+                            <p>Performance heavily relies on quality and stability of historical baseline window</p>
+                        </div>
+                        <div class="comparison-item" style="animation-delay: 0.7s;">
+                            <strong>Entropy sensitivity</strong>
+                            <p>DER and related metrics can fluctuate with prior probability distribution choices</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+		<!-- Slide X: Operational Impact -->
+		<div class="slide">
+			<div class="content">
+				<h2>Operational Impact</h2>
+
+				<!-- Executive Framing Statement -->
+				<div class="highlight-box" style="animation-delay: 0.5s;">
+					<h3>From Investigation Delay to Decision Confidence</h3>
+					<p>
+						CADEN transforms anomaly handling from reactive manual analysis 
+						into governed, quantified decision intelligence.
+					</p>
+				</div>
+
+				<!-- Before / After Contrast -->
+				<div class="two-column" style="margin-top: 3rem;">
+					
+					<div class="card" style="border-left: 4px solid #FF006E;">
+						<h3 style="color: #FF006E;">Before CADEN</h3>
+						<ul>
+							<li>KPI alerts required manual cross-team investigation</li>
+							<li>Multiple data pulls and reconciliation cycles</li>
+							<li>Meetings to debate competing hypotheses</li>
+							<li>5–10 business days to reach clarity</li>
+							<li>Confidence based on experience, not quantification</li>
+						</ul>
+					</div>
+
+					<div class="card" style="border-left: 4px solid #00D964;">
+						<h3 style="color: #00D964;">With CADEN</h3>
+						<ul>
+							<li>Multivariate anomaly validated statistically</li>
+							<li>Ranked causal hypotheses generated automatically</li>
+							<li>Confidence quantified using NCI & DER</li>
+							<li>Executive-ready summary produced instantly</li>
+							<li>Clear decision signal: Stop / Proceed</li>
+						</ul>
+					</div>
+
+				</div>
+
+				<!-- Quantified Impact -->
+				<div class="metrics" style="margin-top: 3rem;">
+					<div class="metric-card">
+						<div class="metric-value">10–14 → 2–3</div>
+						<div class="metric-label">Days to Root Cause Clarity</div>
+					</div>
+
+					<div class="metric-card">
+						<div class="metric-value">Subjective → Quantified</div>
+						<div class="metric-label">Decision Confidence</div>
+					</div>
+
+					<div class="metric-card">
+						<div class="metric-value">Reactive → Governed</div>
+						<div class="metric-label">Operational Model</div>
+					</div>
+				</div>
+
+				<!-- Executive Outcome Statement -->
+				<div class="card" style="margin-top: 3rem; text-align: center; padding: 2.5rem;">
+					<p style="font-size: 1.4rem; font-weight: 600; color: var(--primary); line-height: 1.6;">
+						CADEN does not just detect anomalies —<br>
+						it standardizes how the organization responds to them.
+					</p>
+				</div>
+
+			</div>
+		</div>
+
+
+        <!-- Slide 10: Conclusion -->
+        <div class="slide">
+            <div class="content">
+                <h2>Final Conclusion</h2>
+                <div class="highlight-box">
+                    <h3>CADEN transforms anomaly detection into:</h3>
+                    <p>
+                        Detection → Contextual Interpretation → Probabilistic Explanation → Executive Communication → Decision Confidence Scoring
+                    </p>
+                </div>
+                <div class="card" style="margin-top: 2rem; animation-delay: 0.7s; text-align: center; padding: 3rem;">
+                    <h3 style="font-size: 2rem; margin-bottom: 1.5rem;">It bridges:</h3>
+                    <p style="font-size: 1.5rem; color: var(--text-secondary); line-height: 1.8;">
+                        <span style="color: var(--primary); font-weight: 600;">Statistical Control</span> → 
+                        <span style="color: var(--accent); font-weight: 600;">Bayesian Reasoning</span> → 
+                        <span style="color: var(--secondary); font-weight: 600;">Executive Intelligence</span>
+                    </p>
+                </div>
+                <div style="margin-top: 3rem; text-align: center; animation: fadeInUp 0.8s ease 0.9s both;">
+                    <p style="font-size: 1.8rem; font-weight: 700; background: var(--gradient-3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        This is not an alerting system —<br>
+                        It is a governed anomaly intelligence engine.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="slide-counter">
+            <span id="current-slide">1</span> / <span id="total-slides">10</span>
+        </div>
+        
+        <div class="keyboard-hint">
+            Use ← → or click buttons to navigate
+        </div>
+
+        <div class="nav-controls">
+            <button class="nav-btn" id="prev-btn">←</button>
+            <button class="nav-btn" id="next-btn">→</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const currentSlideSpan = document.getElementById('current-slide');
+        const totalSlidesSpan = document.getElementById('total-slides');
+
+        totalSlidesSpan.textContent = totalSlides;
+
+        function showSlide(n) {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (n + totalSlides) % totalSlides;
+            slides[currentSlide].classList.add('active');
+            currentSlideSpan.textContent = currentSlide + 1;
+            
+            // Scroll to top on slide change (important for mobile)
+            slides[currentSlide].scrollTop = 0;
+        }
+
+        function nextSlide() {
+            showSlide(currentSlide + 1);
+        }
+
+        function prevSlide() {
+            showSlide(currentSlide - 1);
+        }
+
+        document.getElementById('next-btn').addEventListener('click', nextSlide);
+        document.getElementById('prev-btn').addEventListener('click', prevSlide);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevSlide();
+            }
+        });
+
+        // Touch support for mobile
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let touchStartY = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+			if (!touchStartX || !touchStartY) return;
+
+			touchEndX = e.changedTouches[0].screenX;
+			touchEndY = e.changedTouches[0].screenY;
+
+			const deltaX = touchStartX - touchEndX;
+			const deltaY = touchStartY - touchEndY;
+
+			const minSwipeDistance = 60;
+
+			// Make sure it's a strong horizontal swipe
+			if (Math.abs(deltaX) > minSwipeDistance && Math.abs(deltaX) > Math.abs(deltaY)) {
+				if (deltaX > 0) {
+					nextSlide();
+				} else {
+					prevSlide();
+				}
+			}
+
+			// Reset values
+			touchStartX = 0;
+			touchStartY = 0;
+		}, { passive: true });
+
+
+        // Prevent zoom on double-tap for better mobile experience
+        
+    </script>
+</body>
+</html>

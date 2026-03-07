@@ -16,5 +16,16 @@ clear, actionable narratives for business stakeholders.
 - data/        → synthetic datasets (optional)
 - main.py      → pipeline entry point
 
+## Documentation
+
+- 📄 CADEN Framework Paper  
+  `docs/CADEN_Explainable_Anomaly_Intelligence.pdf`
+
+- 📑 Executive Summary  
+  `docs/CADEN_Executive_Summary.pdf`
+
+- 🌐 Interactive Architecture Walkthrough  
+  `index.html`
+
 ## Status
 Research / prototype implementation.
